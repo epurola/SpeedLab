@@ -21,12 +21,11 @@ bool triggered = true;
 WebServer server(80);
 
 // === Setup Access Point ===
-const char* ssid = "GATE_HUB";
-const char* password = "1234";
+const char* ssid = "SpeedLab";
+const char* password = "12345678"; //OMG I PUT A PASSWORD ON GIT HOW WILL I EVER SURVIVE...
 
 uint8_t gate1Mac[] = {0x3C, 0x84, 0x27, 0xC3, 0xC1, 0xFC}; 
 uint8_t gate2Mac[] = {0xDC, 0xDA, 0x0C, 0x3C, 0x53, 0x6C};
-
 
 unsigned long reactionTime = 0;
 
@@ -131,7 +130,7 @@ void loop()
       digitalWrite(LED_BUILTIN, LOW);
       //Serial.println("Beam break!");
     }
-   delay(5); 
+   delay(1); 
 }
 
 void onDataReceived(const uint8_t* mac, const uint8_t* data, int len)

@@ -136,5 +136,5 @@ void loop() {
       digitalWrite(LED_BUILTIN, LOW);
       //Serial.println("Beam break!");
     }
-   delay(5); 
+   delay(1); 
 }

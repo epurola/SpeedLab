@@ -4,7 +4,7 @@
 // 3C:84:27:C3:C1:D0 MAC FOR HUB
 // 3C:84:27:C3:C1:FC MAC for Start gate
 
-/*===========GATE 1 CODE================*/
+/*===========GATE 2 CODE================*/
 
 const int irLedPin = 10;         // IR LED output pin
 const int pwmChannel = 0;       // PWM channel
@@ -136,5 +136,5 @@ void loop() {
       digitalWrite(LED_BUILTIN, LOW);
       //Serial.println("Beam break!");
     }
-   delay(5); 
+   delay(1); 
 }

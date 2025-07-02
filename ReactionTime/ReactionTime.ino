@@ -1,67 +1,130 @@
 #include "Modulino.h"
+#include <WiFi.h> 
+#include <esp_now.h>
 
 ModulinoMovement movement;
 ModulinoBuzzer buzzer;
 
-int frequency = 440;  
-int duration = 500;
+int frequency = 300;  // Frequency of the tone in Hz
+int duration = 1000;
 
 float x, y;
-const float threshold = 0.04; // Movement threshold for reaction 
+const float threshold = 0.02; // Movement threshold for reaction 
 
 unsigned long stimulusTime = 0;
-bool waitingForGoCommand = true;
+bool waitingForGoCommand = false;
 bool waitingForMovement = false;
 
+uint8_t receiverMac[] = { 0x3C, 0x84, 0x27, 0xC3, 0xC1, 0xD0 };
+
+float filteredX = 0;
+float prevX = 0;
+float alpha = 0.5;
+
+// === Enum and Structs ===
+enum GateNumber : uint8_t {
+  REACTION_GATE = 0,
+  START_GATE = 1,
+  MID_GATE_1 = 2,
+  END_GATE   = 3
+};
+enum MessageType : uint8_t {
+  MSG_RESET = 1,
+  MSG_GATE_TRIGGER = 2,
+  MSG_READY = 3,
+  MSG_NOT_READY = 4,
+  REACTION = 5,
+  START = 6
+};
+
+typedef struct message {
+  MessageType type;
+  GateNumber gateType;
+} message;
+
+
+message reactionMessage;
+message startMessage;
+
+
+void OnDataRecv(const uint8_t *mac_addr, const uint8_t *incomingData, int len) 
+{
+  if (len != sizeof(message)) 
+  {
+    return;
+  }
+  message incoming;
+  memcpy(&incoming, incomingData, sizeof(message));
+
+  if (incoming.type == MSG_RESET) 
+  {
+    waitingForGoCommand = true;
+  } 
+  else 
+  {
+  
+  }
+}
+
 void setup() {
-  Serial.begin(9600);
-  Modulino.begin();
-  movement.begin();
+
+  WiFi.mode(WIFI_STA);
+  if (esp_now_init() != ESP_OK) {
+  return;
+}
+
+  esp_now_register_recv_cb(OnDataRecv);
+  esp_now_peer_info_t peerInfo = {};
+  memcpy(peerInfo.peer_addr, receiverMac, 6);
+  peerInfo.channel = 0;
+  peerInfo.encrypt = false;
+
+  if (esp_now_add_peer(&peerInfo) != ESP_OK) 
+  {
+    return;
+  }
+
+
+  Modulino.begin();     
   buzzer.begin();
-  Serial.println("Type 'go' and press Enter to start the reaction timer countdown.");
+  movement.begin();    
+
+  startMessage.type = START;
+  startMessage.gateType = REACTION_GATE;
+
+  reactionMessage.type = REACTION;
+  reactionMessage.gateType = REACTION_GATE;     
 }
 
 void loop() {
-  // Check for serial input
-  if (waitingForGoCommand && Serial.available()) {
-    String input = Serial.readStringUntil('\n');
-    input.trim(); // Remove whitespace
-
-    if (input.equalsIgnoreCase("go")) {
-      // Start the countdown
-      Serial.println("Countdown starting...");
+ 
+    if (waitingForGoCommand) {
       for (int i = 3; i >= 1; i--) {
-        Serial.print(i);
-        Serial.println("...");
         delay(1000);
       }
-      buzzer.tone(frequency, duration);
-      Serial.println("GO! Move now!");
-      stimulusTime = millis();
+ 
+      buzzer.tone(5, duration);
+      esp_now_send(receiverMac, (uint8_t*)&startMessage, sizeof(startMessage));
+
       waitingForGoCommand = false;
       waitingForMovement = true;
     }
-  }
+  
 
   // Update motion data
   movement.update();
-  x = movement.getX();
-  y = movement.getY();
+  float rawX = movement.getX();
+  filteredX = alpha * (filteredX + rawX - prevX);
+  prevX = rawX;
 
   // Check for movement after "GO"
   if (waitingForMovement) {
-    if (abs(x) > threshold ) {
-      unsigned long reactionTimeMs = millis() - stimulusTime;
-      float reactionTimeSec = reactionTimeMs / 1000.0;
-
-      Serial.print("Reaction time: ");
-      Serial.print(reactionTimeSec, 3);
-      Serial.println(" seconds");
+    if (abs(filteredX) > threshold  ) {
+  
+      esp_now_send(receiverMac, (uint8_t*)&reactionMessage, sizeof(reactionMessage));
 
       // Reset for next round
       waitingForMovement = false;
-      waitingForGoCommand = true;
-      Serial.println("\nType 'go' to try again.");
     }
   }
 

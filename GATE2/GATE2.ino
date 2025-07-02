@@ -4,7 +4,7 @@
 // 3C:84:27:C3:C1:D0 MAC FOR HUB
 // 3C:84:27:C3:C1:FC MAC for Start gate
 
-/*===========GATE 2 CODE================*/
+/*===========GATE 1 CODE================*/
 
 const int irLedPin = 10;         // IR LED output pin
 const int pwmChannel = 0;       // PWM channel
@@ -27,7 +27,8 @@ enum MessageType : uint8_t {
 enum GateNumber : uint8_t {
   START_GATE = 1,
   MID_GATE_1 = 2,
-  END_GATE = 3
+  END_GATE = 3,
+  REACTION_BOX = 4
 };
 
 typedef struct message {
@@ -36,11 +37,10 @@ typedef struct message {
 } message;
 
 message outgoingMessage;
+message resetMessage;
 
-bool beamPreviouslyBroken = false;
 bool triggered = true;
 
-int tempGate = 0;
 
 uint8_t receiverMac[] = { 0x3C, 0x84, 0x27, 0xC3, 0xC1, 0xD0 };  //Mac for hub
 
@@ -63,10 +63,9 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *incomingData, int len)
   {
     //Serial.println("Reset command received!");
     triggered = false;
-    tempGate = 0;
-    outgoingMessage.type = MSG_READY;
-    outgoingMessage.gateType = (GateNumber)(START_GATE + tempGate);
-    esp_err_t result = esp_now_send(receiverMac, (uint8_t *)&outgoingMessage, sizeof(outgoingMessage));
+    resetMessage.type = MSG_READY;
+    resetMessage.gateType = MID_GATE_1;
+    esp_now_send(receiverMac, (uint8_t *)&resetMessage, sizeof(resetMessage));
   } 
   else 
   {
@@ -111,6 +110,10 @@ void setup() {
   
   pinMode(receiverPin, INPUT);
 
+  outgoingMessage.type = MSG_GATE_TRIGGER;
+  outgoingMessage.gateType = MID_GATE_1;
+    
+
   //Serial.println("Sender ready.");
 }
 
@@ -119,14 +122,8 @@ void loop() {
     bool beamDetected = digitalRead(receiverPin) == LOW;
 
     if (!beamDetected && !triggered) {
-      outgoingMessage.type = MSG_GATE_TRIGGER;
-      outgoingMessage.gateType = (GateNumber)(MID_GATE_1);
-    
-      beamPreviouslyBroken = true;
-    
       triggered = true;
-      esp_err_t result = esp_now_send(receiverMac, (uint8_t *)&outgoingMessage, sizeof(outgoingMessage));
-  
+      esp_now_send(receiverMac, (uint8_t *)&outgoingMessage, sizeof(outgoingMessage));
       //Serial.println("Runner detected!");
     } else if(beamDetected) {
       //Serial.println("Beam OK");

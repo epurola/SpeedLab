@@ -1,4 +1,4 @@
-# 🏃‍♂️ Sprint Light Gate Timing System
+# Sprint Light Gate Timing System
 
 This is a lightweight and accurate **light gate timing system** designed to measure sprint times by detecting when an athlete passes through infrared sensor gates.
 
@@ -6,7 +6,7 @@ Built with the **Arduino Nano ESP32**, **modulated infrared sensors**, and a cus
 
 ---
 
-## ✨ Features
+## Features
 
 - 📡 **ESP-NOW Wireless Networking** between gate nodes and the central controller
 - 📲 **Android App** to control timing, start/stop sessions, and view results
@@ -16,7 +16,7 @@ Built with the **Arduino Nano ESP32**, **modulated infrared sensors**, and a cus
 
 ---
 
-## 📲 Android App
+## Android App
 
 An Android app is included to:
 

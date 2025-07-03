@@ -4,8 +4,6 @@ This is a lightweight and accurate **light gate timing system** designed to meas
 
 Built with the **Arduino Nano ESP32**, **modulated infrared sensors**, and a custom **Android application**, the system communicates wirelessly using **ESP-NOW** and provides real-time timing results via Wi-Fi to a mobile app.
 
-![System Overview](https://github.com/user-attachments/assets/765a1288-913e-44d9-bb80-24fb6ce1e2b9)
-
 ---
 
 ## ✨ Features
@@ -28,4 +26,4 @@ An Android app is included to:
 - Reset and configure gate behavior
 ---
 
-
+<img src="https://github.com/user-attachments/assets/765a1288-913e-44d9-bb80-24fb6ce1e2b9" width="400"/>

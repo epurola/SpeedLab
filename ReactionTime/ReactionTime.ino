@@ -1,17 +1,17 @@
 #include "Modulino.h"
-#include <WiFi.h> 
+#include <WiFi.h>
 #include <esp_now.h>
 
 ModulinoMovement movement;
 ModulinoBuzzer buzzer;
 
+
 int frequency = 300;  // Frequency of the tone in Hz
-int duration = 1000;
+int duration = 500;
 
 float x, y;
-const float threshold = 0.02; // Movement threshold for reaction 
+const float threshold = 0.03;  // Movement threshold for reaction
 
-unsigned long stimulusTime = 0;
 bool waitingForGoCommand = false;
 bool waitingForMovement = false;
 
@@ -26,7 +26,7 @@ enum GateNumber : uint8_t {
   REACTION_GATE = 0,
   START_GATE = 1,
   MID_GATE_1 = 2,
-  END_GATE   = 3
+  END_GATE = 3
 };
 enum MessageType : uint8_t {
   MSG_RESET = 1,
@@ -47,31 +47,24 @@ message reactionMessage;
 message startMessage;
 
 
-void OnDataRecv(const uint8_t *mac_addr, const uint8_t *incomingData, int len) 
-{
-  if (len != sizeof(message)) 
-  {
+void OnDataRecv(const uint8_t *mac_addr, const uint8_t *incomingData, int len) {
+  if (len != sizeof(message)) {
     return;
   }
   message incoming;
   memcpy(&incoming, incomingData, sizeof(message));
 
-  if (incoming.type == MSG_RESET) 
-  {
+  if (incoming.type == MSG_RESET) {
     waitingForGoCommand = true;
   } 
-  else 
-  {
-  
-  }
 }
 
 void setup() {
 
   WiFi.mode(WIFI_STA);
   if (esp_now_init() != ESP_OK) {
-  return;
-}
+    return;
+  }
 
   esp_now_register_recv_cb(OnDataRecv);
   esp_now_peer_info_t peerInfo = {};
@@ -79,37 +72,31 @@ void setup() {
   peerInfo.channel = 0;
   peerInfo.encrypt = false;
 
-  if (esp_now_add_peer(&peerInfo) != ESP_OK) 
-  {
+  if (esp_now_add_peer(&peerInfo) != ESP_OK) {
     return;
   }
 
-
-  Modulino.begin();     
+  Modulino.begin();
   buzzer.begin();
-  movement.begin();    
+  movement.begin();
 
   startMessage.type = START;
   startMessage.gateType = REACTION_GATE;
 
   reactionMessage.type = REACTION;
-  reactionMessage.gateType = REACTION_GATE;     
+  reactionMessage.gateType = REACTION_GATE;
 }
 
 void loop() {
- 
-    if (waitingForGoCommand) {
-      for (int i = 3; i >= 1; i--) {
-        delay(1000);
-      }
- 
-      buzzer.tone(5, duration);
-      esp_now_send(receiverMac, (uint8_t*)&startMessage, sizeof(startMessage));
 
-      waitingForGoCommand = false;
-      waitingForMovement = true;
-    }
+  if (waitingForGoCommand) {
   
+    esp_now_send(receiverMac, (uint8_t *)&startMessage, sizeof(startMessage));
+    buzzer.tone(5, 1000);
+    delay(15);
+    waitingForGoCommand = false;
+    waitingForMovement = true;
+  }
 
   // Update motion data
   movement.update();
@@ -119,14 +106,13 @@ void loop() {
 
   // Check for movement after "GO"
   if (waitingForMovement) {
-    if (abs(filteredX) > threshold  ) {
-  
-      esp_now_send(receiverMac, (uint8_t*)&reactionMessage, sizeof(reactionMessage));
+    if (abs(filteredX) > threshold) {
+
+      esp_now_send(receiverMac, (uint8_t *)&reactionMessage, sizeof(reactionMessage));
 
       // Reset for next round
       waitingForMovement = false;
     }
   }
-
-  delay(5);
+ delay(1);
 }

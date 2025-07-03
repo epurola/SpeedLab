@@ -103,7 +103,6 @@ void setup() {
     return;
   }
 
-
   // Web server routes
   server.on("/status", HTTP_POST, handleStatus);
   server.on("/reset", HTTP_POST, handleReset);
@@ -123,8 +122,6 @@ void loop() {
 
   if (!beamDetected && !triggered) {
     unsigned long now = millis();
-
-    beamPreviouslyBroken = true;
 
     triggered = true;
     raceData.push_back({ END_GATE, now });
@@ -170,7 +167,7 @@ void onDataReceived(const uint8_t* mac, const uint8_t* data, int len) {
       break;
 
     case REACTION: {
-      reactionTime = millis() - stimulusTime - 2;
+      reactionTime = millis() - stimulusTime;
     break;
     }
    
@@ -193,9 +190,19 @@ String getStatusString(MessageType status) {
 
 // === HTTP Handlers ===
 void handleStatus() {
+  raceData.clear();
+  reactionTime = 0;
+  triggered = false;
+
   message resetMsg;
   resetMsg.type = MSG_RESET;
+  
+  esp_now_send(gate1Mac, (uint8_t*)&resetMsg, sizeof(resetMsg));
+  esp_now_send(gate2Mac, (uint8_t*)&resetMsg, sizeof(resetMsg));
+
+ // delay(500);
   esp_now_send(blockStartMac, (uint8_t*)&resetMsg, sizeof(resetMsg));
+
   server.send(200, "text/plain", "Status message sent");
 }
 

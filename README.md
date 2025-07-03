@@ -26,4 +26,4 @@ An Android app is included to:
 - Reset and configure gate behavior
 ---
 
-<img src="https://github.com/user-attachments/assets/765a1288-913e-44d9-bb80-24fb6ce1e2b9" width="400"/>
+<img src="https://github.com/user-attachments/assets/765a1288-913e-44d9-bb80-24fb6ce1e2b9" width="300"/>

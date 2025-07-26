@@ -10,7 +10,7 @@ const int irLedPin = 10;         // IR LED output pin
 const int pwmChannel = 0;       // PWM channel
 const int pwmFreq = 38000;      // 38kHz carrier frequency
 const int pwmResolution = 8;    // 8-bit resolution
-const int maxDuty = 2;        // 50% duty cycle 
+const int maxDuty = 2;       
 
 const int receiverPin = 7;      // TSSP90438 output pin
 

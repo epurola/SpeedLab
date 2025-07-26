@@ -1,6 +1,6 @@
 #include <esp_now.h>
 #include <WiFi.h>
-#include <Arduino.h>  // Required for ledc functions on ESP32-S3
+#include <Arduino.h> 
 
 // MAC addresses
 // 3C:84:27:C3:C1:D0 MAC FOR HUB
@@ -15,7 +15,7 @@ const int irLedPin = 1;         // IR LED output pin (check if usable on your bo
 const int pwmChannel = 0;        // PWM channel
 const int pwmFreq = 38000;       // 38kHz carrier frequency
 const int pwmResolution = 8;     // 8-bit resolution
-int maxDuty = 20;           // 5/255 duty cycle
+int maxDuty = 20;        
 
 const int receiverPin = 5;       // TSSP90438 output pin
 
@@ -135,5 +135,5 @@ void loop() {
     delay(200);
   }
 
-  delay(1);  // Avoid watchdog timeout 
+  delay(1); 
 }

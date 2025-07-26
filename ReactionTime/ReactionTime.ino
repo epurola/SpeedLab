@@ -1,6 +1,7 @@
 #include "Modulino.h"
 #include <WiFi.h>
 #include <esp_now.h>
+#include <usb.h>
 
 ModulinoMovement movement;
 ModulinoBuzzer buzzer;
@@ -21,6 +22,8 @@ float filteredX = 0;
 float prevX = 0;
 float alpha = 0.5;
 
+unsigned long start = 0;
+unsigned long end = 0;
 // === Enum and Structs ===
 enum GateNumber : uint8_t {
   REACTION_GATE = 0,
@@ -61,6 +64,8 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *incomingData, int len) {
 
 void setup() {
 
+ //Serial.begin(9600);
+
   WiFi.mode(WIFI_STA);
   if (esp_now_init() != ESP_OK) {
     return;
@@ -90,8 +95,9 @@ void setup() {
 void loop() {
 
   if (waitingForGoCommand) {
-  
+
     esp_now_send(receiverMac, (uint8_t *)&startMessage, sizeof(startMessage));
+    
     buzzer.tone(5, 1000);
     delay(15);
     waitingForGoCommand = false;

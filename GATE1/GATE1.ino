@@ -10,9 +10,11 @@ const int irLedPin = 10;         // IR LED output pin
 const int pwmChannel = 0;       // PWM channel
 const int pwmFreq = 38000;      // 38kHz carrier frequency
 const int pwmResolution = 8;    // 8-bit resolution
-const int maxDuty = 5;        // 50% duty cycle 
+const int maxDuty = 2;        // 50% duty cycle 
 
 const int receiverPin = 7;      // TSSP90438 output pin
+
+int count = 0;
 
 //==================================
 //====VARIABLES=====================
@@ -122,8 +124,12 @@ void loop() {
     bool beamDetected = digitalRead(receiverPin) == LOW;
 
     if (!beamDetected && !triggered) {
-      triggered = true;
-      esp_now_send(receiverMac, (uint8_t *)&outgoingMessage, sizeof(outgoingMessage));
+      count++;
+      if(count >= 2){
+        triggered = true;
+        count = 0;
+        esp_now_send(receiverMac, (uint8_t *)&outgoingMessage, sizeof(outgoingMessage));
+      }
       //Serial.println("Runner detected!");
     } else if(beamDetected) {
       //Serial.println("Beam OK");
@@ -131,6 +137,7 @@ void loop() {
 
     }else{
       digitalWrite(LED_BUILTIN, LOW);
+      delay(100);
       //Serial.println("Beam break!");
     }
    delay(1); 

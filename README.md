@@ -26,7 +26,9 @@ An Android app is included to:
 - Reset and configure gate behavior
 ---
 
-<img src="https://github.com/user-attachments/assets/765a1288-913e-44d9-bb80-24fb6ce1e2b9" width="300"/>
+<div style="display: flex; gap: 10px; align-items: flex-start;">
+  <img src="https://github.com/user-attachments/assets/765a1288-913e-44d9-bb80-24fb6ce1e2b9" width="300"/>
+  <img src="https://raw.githubusercontent.com/epurola/SpeedLab/main/15378-1.jpg" width="500"/>
+</div>
 
-<img src="https://raw.githubusercontent.com/epurola/SpeedLab/main/15378-1.jpg" width="500"/>
 

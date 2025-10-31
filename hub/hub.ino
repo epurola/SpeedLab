@@ -1,6 +1,7 @@
 #include <WiFi.h>
 #include <esp_now.h>
 #include <WebServer.h>
+#include <WebSocketsServer.h>
 #include <vector>
 
 //Convert to web socket
@@ -21,15 +22,15 @@ unsigned long stimulusTime = 0;
 
 int count = 0;
 
-WebServer server(80);
-
+//WebServer server(80);
+WebSocketsServer webSocket = WebSocketsServer(81);
 // === Setup Access Point ===
 const char* ssid = "GATE_HUB";
 const char* password = "1234";  //OMG I PUT A PASSWORD ON GITHUB HOW WILL I EVER SURVIVE...
 
-uint8_t gate1Mac[] = { 0x3C, 0x84, 0x27, 0xC3, 0xC1, 0xFC };
+uint8_t gate1Mac[] = { 0xDC, 0xDA, 0x0C, 0x3B, 0x67, 0x04 }; //Real mac 0x3C, 0x84, 0x27, 0xC3, 0xC1, 0xD0
 uint8_t gate2Mac[] = { 0xDC, 0xDA, 0x0C, 0x3C, 0x53, 0x6C };
-uint8_t blockStartMac[] = { 0xDC, 0xDA, 0x0C, 0x3B, 0x67, 0x04 };
+uint8_t blockStartMac[] = { 0x80, 0x7D, 0x3A, 0xEB, 0x94, 0x1C };
 
 //uint8_t smallGate1Mac[] = { 0x10, 0x20, 0xBA, 0x31, 0x31, 0x50 };
 
@@ -115,20 +116,35 @@ void setup() {
    // return;
   //}
 
+  //WebSocket setup
+  webSocket.begin();
+  webSocket.onEvent([](uint8_t num, WStype_t type, uint8_t *payload, size_t length) {
+    if (type == WStype_TEXT) {
+      String msg = String((char*)payload);
+      handleCommand(msg);
+    } else if (type == WStype_CONNECTED) {
+      //Serial.printf("Client %u connected\n", num);
+      webSocket.sendTXT(num, "{\"msg\":\"connected\"}");
+    } else if (type == WStype_DISCONNECTED) {
+      //Serial.printf("Client %u disconnected\n", num);
+    }
+  });
+
   // Web server routes
-  server.on("/status", HTTP_POST, handleStatus);
-  server.on("/reset", HTTP_POST, handleReset);
-  server.on("/last", HTTP_GET, handleLastResults);
-  server.begin();
-  //Serial.print("Access Point IP: ");
-  //Serial.println(WiFi.softAPIP());
+  //server.on("/status", HTTP_POST, handleStatus);
+  //server.on("/reset", HTTP_POST, handleReset);
+  //server.on("/last", HTTP_GET, handleLastResults);
+  //server.begin();
+   //Serial.begin(9600);
+ 
   //Serial.print("Ready!");
 }
 
 void loop() {
   if (triggered) {
-    server.handleClient();
+    webSocket.loop();
   }
+
   bool beamDetected = digitalRead(receiverPin) == LOW;
  
   if (!beamDetected && !triggered) {
@@ -139,6 +155,8 @@ void loop() {
     if(count >= 2){
      triggered = true;
      raceData.push_back({ END_GATE, now });
+     webSocket.broadcastTXT("{\"cmd\":\"stop_camera\"}");
+     handleLastResult();
     }
     //Serial.println("Runner detected!");
   } else if (beamDetected) {
@@ -164,6 +182,9 @@ void onDataReceived(const uint8_t* mac, const uint8_t* data, int len) {
     case MSG_GATE_TRIGGER:
       //Serial.printf("Gate %d triggered at %lu ms\n", msg.gateNum, now);
       raceData.push_back({ msg.gateNum, now });
+      if(raceData.size() == 1){
+        webSocket.broadcastTXT("{\"cmd\":\"start_camera\"}");
+      }
       break;
 
     case MSG_READY:
@@ -179,6 +200,7 @@ void onDataReceived(const uint8_t* mac, const uint8_t* data, int len) {
     case START:
       stimulusTime = millis();
       raceData.push_back({ msg.gateNum, now });
+      webSocket.broadcastTXT("{\"cmd\":\"start_camera\"}");
       break;
 
     case REACTION: {
@@ -192,6 +214,53 @@ void onDataReceived(const uint8_t* mac, const uint8_t* data, int len) {
   }
 }
 
+
+void handleCommand(String cmd) {
+  cmd.trim();
+ //Serial.println("Received command: " + cmd);
+
+  message resetMsg;
+  resetMsg.type = MSG_RESET;
+
+  if (cmd == "reset") {
+    raceData.clear();
+    reactionTime = 0;
+    triggered = false;
+    esp_now_send(gate1Mac, (uint8_t*)&resetMsg, sizeof(resetMsg));
+    esp_now_send(gate2Mac, (uint8_t*)&resetMsg, sizeof(resetMsg));
+    //esp_now_send(blockStartMac, (uint8_t*)&resetMsg, sizeof(resetMsg));
+
+    webSocket.broadcastTXT("{\"msg\":\"system_reset\"}");
+  } 
+
+  if(cmd == "status"){
+    raceData.clear();
+    reactionTime = 0;
+    triggered = false;
+    esp_now_send(gate1Mac, (uint8_t*)&resetMsg, sizeof(resetMsg));
+    esp_now_send(gate2Mac, (uint8_t*)&resetMsg, sizeof(resetMsg));
+    esp_now_send(blockStartMac, (uint8_t*)&resetMsg, sizeof(resetMsg));
+
+    webSocket.broadcastTXT("{\"msg\":\"blocks_reset\"}");
+  }
+  else if (cmd == "get_last") {
+    handleLastResult();
+  }
+}
+
+void handleLastResult() {
+  String json = "[";
+  for (size_t i = 0; i < raceData.size(); i++) {
+    json += "{\"gate\":" + String(raceData[i].gate) + ",\"time\":" + String(raceData[i].timestamp) + "}";
+    if (i < raceData.size() - 1) json += ",";
+  }
+  if (raceData.size() > 0) json += ",";
+  json += "{\"gate\":0,\"time\":" + String(reactionTime) + "}";
+  json += "]";
+  webSocket.broadcastTXT(json);
+  // Serial.print("DATA FETCHED!");
+}
+
 String getStatusString(MessageType status) {
   switch (status) {
     case MSG_READY:
@@ -203,6 +272,12 @@ String getStatusString(MessageType status) {
   }
 }
 
+
+
+
+
+
+/*
 // === HTTP Handlers ===
 void handleStatus() {
   raceData.clear();
@@ -237,17 +312,4 @@ void handleReset() {
 
 
   server.send(200, "text/plain", "Race data cleared");
-}
-
-void handleLastResults() {
-  String json = "[";
-  for (size_t i = 0; i < raceData.size(); i++) {
-    json += "{\"gate\":" + String(raceData[i].gate) + ",\"time\":" + String(raceData[i].timestamp) + "}";
-    if (i < raceData.size() - 1) json += ",";
-  }
-  if (raceData.size() > 0) json += ",";
-  json += "{\"gate\":0,\"time\":" + String(reactionTime) + "}";
-  json += "]";
-  server.send(200, "application/json", json);
-  // Serial.print("DATA FETCHED!");
-}
+}*/

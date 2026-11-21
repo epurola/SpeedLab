@@ -8,11 +8,11 @@ Built with the **Arduino Nano ESP32**, **modulated infrared sensors**, and a cus
 
 ## Features
 
-- 📡 **ESP-NOW Wireless Networking** between gate nodes and the central controller
-- 📲 **Android App** to control timing, start/stop sessions, and view results
-- 🔦 **Modulated Infrared Light Gates** for accurate, ambient light-resistant detection
-- ⏱️ **Millisecond Timing Accuracy** for short sprints and reaction measurements
-- 🔋 **Battery-Powered** for portable, field-ready operation
+- **ESP-NOW Wireless Networking** between gate nodes and the central controller
+- **Android App** to control timing, start/stop sessions, and view results
+- **Modulated Infrared Light Gates** for accurate, ambient light-resistant detection
+- **Millisecond Timing Accuracy** for short sprints and reaction measurements
+- **Battery-Powered** for portable, field-ready operation
 
 ---
 

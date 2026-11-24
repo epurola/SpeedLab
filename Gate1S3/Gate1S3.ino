@@ -1,29 +1,22 @@
-#include <esp_now.h>
+#include <Arduino.h>
 #include <WiFi.h>
-#include <Arduino.h> 
+#include <esp_now.h>
+#include <esp_wifi.h>
 
-// MAC addresses
-// 3C:84:27:C3:C1:D0 MAC FOR HUB
-// 3C:84:27:C3:C1:FC MAC for Start gate
+/*=========== GATE 1 S3 (BROADCAST FOR CHEST MASTER) ================*/
 
-//for small start gate 10:20:BA:31:31:50
-// for small hub const 10:20:ba:31:31:38
+constexpr int irLedPin = 1;          // IR LED output pin
+constexpr int pwmFreq = 38000;       // 38 kHz carrier frequency
+constexpr int pwmResolution = 8;     // 8-bit resolution
+constexpr int maxDuty = 20;
 
-/*===========GATE 1 CODE================*/
+constexpr int receiverPin = 5;       // TSSP90438 output pin
+constexpr int statusLedPin = 48;
 
-const int irLedPin = 1;         // IR LED output pin (check if usable on your board)
-const int pwmChannel = 0;        // PWM channel
-const int pwmFreq = 38000;       // 38kHz carrier frequency
-const int pwmResolution = 8;     // 8-bit resolution
-int maxDuty = 20;        
+constexpr uint8_t WIFI_CHANNEL = 1;
+constexpr uint32_t REARM_MS = 2500;
+constexpr uint8_t BROADCAST_MAC[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-const int receiverPin = 5;       // TSSP90438 output pin
-
-int count = 0;
-
-//==================================
-//====VARIABLES=====================
-//=================================
 enum MessageType : uint8_t {
   MSG_RESET = 1,
   MSG_GATE_TRIGGER = 2,
@@ -39,101 +32,67 @@ enum GateNumber : uint8_t {
   REACTION_BOX = 4
 };
 
-typedef struct message {
-  MessageType type;
-  uint8_t gateType;
-} message;
+struct __attribute__((packed)) GatePacket {
+  uint8_t type;
+  uint8_t gateId;
+  uint16_t seq;
+};
 
-message outgoingMessage;
-message resetMessage;
-
-bool triggered = true;
-
-uint8_t receiverMac[] = { 0x10, 0x20, 0xBA, 0x31, 0x31, 0x38 };  // MAC for hub
-
-//==================================
-//=========ESP-NOW RECEIVE==========
-//==================================
-
-void OnDataRecv(const esp_now_recv_info_t *info, const uint8_t *incomingData, int len) {
-  if (len != sizeof(message)) return;
-
-  message incoming;
-  memcpy(&incoming, incomingData, sizeof(message));
-
-  if (incoming.type == MSG_RESET) {
-    triggered = false;
-    resetMessage.type = MSG_READY;
-    resetMessage.gateType = START_GATE;
-    esp_now_send(receiverMac, (uint8_t *)&resetMessage, sizeof(resetMessage));
-  }
-
-  if(incoming.type == MAX_DUTY ){
-    int newDuty = incoming.gateType;
-    maxDuty = newDuty;
-    ledcWrite(irLedPin, maxDuty);
-  }
-}
-
-//==================================
-//==============SETUP===============
-//==================================
+GatePacket outgoingPacket{MSG_GATE_TRIGGER, START_GATE, 0};
+bool triggered = false;
+uint32_t lastTriggerMs = 0;
+int count = 0;
 
 void setup() {
   setCpuFrequencyMhz(80);
-  pinMode(48, OUTPUT);
-  digitalWrite(48, LOW);
+  pinMode(statusLedPin, OUTPUT);
+  digitalWrite(statusLedPin, LOW);
 
   WiFi.mode(WIFI_STA);
-  WiFi.disconnect();  // Ensure not connected to AP
+  WiFi.disconnect();
+  esp_wifi_set_channel(WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE);
 
   if (esp_now_init() != ESP_OK) return;
 
-  esp_now_register_recv_cb(OnDataRecv);
-
   esp_now_peer_info_t peerInfo = {};
-  memcpy(peerInfo.peer_addr, receiverMac, 6);
-  peerInfo.channel = 0;
+  memcpy(peerInfo.peer_addr, BROADCAST_MAC, 6);
+  peerInfo.channel = WIFI_CHANNEL;
   peerInfo.encrypt = false;
 
   if (esp_now_add_peer(&peerInfo) != ESP_OK) return;
-
 
   ledcAttach(irLedPin, pwmFreq, pwmResolution);
   ledcWrite(irLedPin, maxDuty);
 
   pinMode(receiverPin, INPUT);
-
-  outgoingMessage.type = MSG_GATE_TRIGGER;
-  outgoingMessage.gateType = START_GATE;
 }
 
-//==================================
-//===============LOOP===============
-//==================================
-
 void loop() {
-  bool beamDetected = digitalRead(receiverPin) == LOW;
+  if (triggered && (millis() - lastTriggerMs >= REARM_MS)) {
+    triggered = false;
+  }
+
+  const bool beamDetected = (digitalRead(receiverPin) == LOW);
 
   if (!beamDetected && !triggered) {
     count++;
+    if (count >= 2) {
+      triggered = true;
+      count = 0;
+      lastTriggerMs = millis();
+      outgoingPacket.seq++;
 
-  if(count >= 2){
-    triggered = true;
-    count = 0;
-    esp_now_send(receiverMac, (uint8_t *)&outgoingMessage, sizeof(outgoingMessage));
-  }
-  
+      for (int i = 0; i < 3; ++i) {
+        esp_now_send(BROADCAST_MAC, reinterpret_cast<const uint8_t*>(&outgoingPacket), sizeof(outgoingPacket));
+        delay(1);
+      }
+    }
   } else if (beamDetected) {
-    digitalWrite(48, HIGH);
+    count = 0;
+    digitalWrite(statusLedPin, HIGH);
   } else {
-    digitalWrite(48, LOW);
-    delay(100);
+    digitalWrite(statusLedPin, LOW);
   }
 
-  if(triggered){
-    delay(200);
-  }
-
-  delay(1); 
+  delay(1);
 }
